@@ -1,0 +1,26 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+
+# User-specific
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (these go to Documents\PPA5500_Logs\, not the source folder, but just in case)
+*.csv
+*.jsonl
+*.xlsx
+
+# Backup snapshots created during development
+*_backup_*/
