@@ -102,11 +102,8 @@ public static class XlsxExporter
                     if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out var fv))
                     {
                         cell.Value = fv;
-                        if (name.Contains("thd"))            cell.Style.NumberFormat.Format = "0.00";
-                        else if (name == "freq_hz")          cell.Style.NumberFormat.Format = "0.0000";
-                        else if (name.EndsWith("_pf") ||
-                                 name.EndsWith("_dc_percent")) cell.Style.NumberFormat.Format = "0.0000";
-                        else                                  cell.Style.NumberFormat.Format = "0.000000E+00";
+                        // 2 decimal places for every measurement column.
+                        cell.Style.NumberFormat.Format = "0.00";
                     }
                     else
                     {
