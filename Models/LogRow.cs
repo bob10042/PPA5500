@@ -8,6 +8,8 @@ public sealed class LogRow
 {
     public DateTime TimeLocal { get; init; }
     public double Frequency { get; init; }
+    public double TempC { get; init; } = double.NaN;
+    public double RhPct { get; init; } = double.NaN;
     public double Ch1Watts { get; init; }
     public double Ch2Watts { get; init; }
     public double Ch3Watts { get; init; }
@@ -29,6 +31,8 @@ public sealed class LogRow
 
     public string TimeText => TimeLocal.ToString("yyyy-MM-dd HH:mm:ss");
     public string FreqText => Fmt(Frequency, 4);
+    public string TempText => double.IsNaN(TempC) ? "-" : TempC.ToString("0.00", CultureInfo.InvariantCulture) + " °C";
+    public string RhText   => double.IsNaN(RhPct) ? "-" : RhPct.ToString("0.0",  CultureInfo.InvariantCulture) + " %";
     public string Ch1WText => Eng(Ch1Watts);
     public string Ch2WText => Eng(Ch2Watts);
     public string Ch3WText => Eng(Ch3Watts);
@@ -55,6 +59,8 @@ public sealed class LogRow
         {
             TimeLocal = s.TimestampUtc.ToLocalTime(),
             Frequency = s.Frequency,
+            TempC     = s.Env is { IsValid: true } ? s.Env.TempC : double.NaN,
+            RhPct     = s.Env is { IsValid: true } ? s.Env.RhPct : double.NaN,
             Ch1Watts  = P(0)?.Watts ?? double.NaN,
             Ch2Watts  = P(1)?.Watts ?? double.NaN,
             Ch3Watts  = P(2)?.Watts ?? double.NaN,

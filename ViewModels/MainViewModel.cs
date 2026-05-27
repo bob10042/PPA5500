@@ -14,9 +14,14 @@ namespace Newton4thGui.ViewModels;
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly Ppa5500Client _client = new();
+    private readonly RotronicClient _rotronic = new();
     private readonly CsvLogger _csv = new();
     private CancellationTokenSource? _cts;
     private Task? _pollTask;
+    private CancellationTokenSource? _envCts;
+    private Task? _envTask;
+    private EnvironmentSample? _lastEnv;
+    private readonly object _envLock = new();
     private DateTime _lastLogUtc = DateTime.MinValue;
 
     // ---- connection ----
@@ -70,6 +75,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private double _refreshHz = 2.0;
     public double RefreshHz { get => _refreshHz; set => Set(ref _refreshHz, value); }
 
+    // ---- environment (Rotronic) ----
+    // Polled on its own slow timer (5 s) — RH/T move slowly and a faster cadence
+    // just hammers the FTDI. The latest sample is cached and attached to every
+    // PowerSnapshot at log time. PPA logging is NEVER blocked by the absence
+    // of a probe: missing Env -> empty temp_c/rh_pct cells.
+    private double _temperatureC = double.NaN;
+    public double TemperatureC
+    {
+        get => _temperatureC;
+        private set { if (Set(ref _temperatureC, value)) Raise(nameof(TemperatureText)); }
+    }
+    public string TemperatureText =>
+        double.IsNaN(_temperatureC) ? "-" :
+        _temperatureC.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    private double _humidityRh = double.NaN;
+    public double HumidityRh
+    {
+        get => _humidityRh;
+        private set { if (Set(ref _humidityRh, value)) Raise(nameof(HumidityText)); }
+    }
+    public string HumidityText =>
+        double.IsNaN(_humidityRh) ? "-" :
+        _humidityRh.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+
+    private string _rotronicStatus = "Probe not connected.";
+    public string RotronicStatus { get => _rotronicStatus; private set => Set(ref _rotronicStatus, value); }
+
+    private string _rotronicDeviceLabel = "";
+    public string RotronicDeviceLabel { get => _rotronicDeviceLabel; private set => Set(ref _rotronicDeviceLabel, value); }
+
     // ---- logger ----
     private string _logFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PPA5500_Logs");
     public string LogFolder { get => _logFolder; set => Set(ref _logFolder, value); }
@@ -118,6 +154,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ExportXlsxCommand     = new RelayCommand(ExportXlsx);
 
         RefreshPorts();
+        StartEnvironmentPolling();
     }
 
     public void RefreshPorts()
@@ -126,10 +163,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         foreach (var info in SerialPortInfo.Enumerate())
             AvailablePorts.Add(info);
 
-        // Try to keep current selection; otherwise prefer a USB-instrument port,
-        // else a Newtons4th-branded port, else first available.
+        // Auto-pick the most likely PPA5500 port. The bench-standard setup uses a
+        // USB-RS232 cable (PL2303 / FT232) into the PPA's rear RS232 socket, so an
+        // Rs232Adapter wins over UsbInstrument (the latter would be the PPA's own
+        // USB port, only present on later firmware). Falls back gracefully if the
+        // user already picked something.
         var match = AvailablePorts.FirstOrDefault(p => p.PortName == PortName)
+                 ?? AvailablePorts.FirstOrDefault(p => p.Kind == InterfaceKind.Rs232Adapter)
                  ?? AvailablePorts.FirstOrDefault(p => p.Kind == InterfaceKind.UsbInstrument)
+                 ?? AvailablePorts.FirstOrDefault(p => p.Kind == InterfaceKind.UsbBridge)
                  ?? AvailablePorts.FirstOrDefault();
         SelectedPort = match;
     }
@@ -175,6 +217,96 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _cts?.Dispose();
         _cts = null;
         _pollTask = null;
+    }
+
+    private void StartEnvironmentPolling()
+    {
+        StopEnvironmentPolling();
+        _envCts = new CancellationTokenSource();
+        _envTask = Task.Run(() => EnvironmentPollLoop(_envCts.Token));
+    }
+
+    private void StopEnvironmentPolling()
+    {
+        try { _envCts?.Cancel(); _envTask?.Wait(1500); } catch { /* ignore */ }
+        _envCts?.Dispose();
+        _envCts = null;
+        _envTask = null;
+    }
+
+    /// <summary>
+    /// Background task: every 5 seconds, take one Rotronic reading. If the
+    /// device isn't open yet (or has dropped off the bus), retry the open
+    /// every 10 seconds without blocking the PPA poll loop.
+    /// </summary>
+    private async Task EnvironmentPollLoop(CancellationToken ct)
+    {
+        const int pollMs = 5000;
+        const int reconnectMs = 10000;
+        DateTime lastReconnectAttempt = DateTime.MinValue;
+
+        while (!ct.IsCancellationRequested)
+        {
+            if (!_rotronic.IsOpen)
+            {
+                if (DateTime.UtcNow - lastReconnectAttempt > TimeSpan.FromMilliseconds(reconnectMs))
+                {
+                    lastReconnectAttempt = DateTime.UtcNow;
+                    bool opened = false;
+                    try { opened = _rotronic.TryOpen(); }
+                    catch (Exception ex)
+                    {
+                        Application.Current?.Dispatcher.Invoke(() =>
+                            RotronicStatus = "Open error: " + ex.Message);
+                    }
+                    if (opened)
+                    {
+                        Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            RotronicStatus = "Connected.";
+                            RotronicDeviceLabel = _rotronic.DeviceLabel;
+                        });
+                    }
+                    else
+                    {
+                        Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            RotronicStatus = "Probe not connected.";
+                            RotronicDeviceLabel = "";
+                            TemperatureC = double.NaN;
+                            HumidityRh = double.NaN;
+                        });
+                    }
+                }
+            }
+
+            if (_rotronic.IsOpen)
+            {
+                try
+                {
+                    var sample = await _rotronic.ReadAsync(ct: ct).ConfigureAwait(false);
+                    lock (_envLock) _lastEnv = sample;
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        TemperatureC = sample.TempC;
+                        HumidityRh = sample.RhPct;
+                        RotronicDeviceLabel = sample.Source;
+                        RotronicStatus = $"OK — {DateTime.Now:HH:mm:ss}";
+                    });
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    Application.Current?.Dispatcher.Invoke(() =>
+                        RotronicStatus = "Read error: " + ex.Message);
+                    // Drop the device on persistent errors so the reconnect loop reopens it.
+                    try { _rotronic.Close(); } catch { /* ignore */ }
+                }
+            }
+
+            try { await Task.Delay(pollMs, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { break; }
+        }
     }
 
     private (double v, double i, double vph, double iph)[] _lastThd =
@@ -367,6 +499,14 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _lastLogUtc = snap.TimestampUtc;
         try
         {
+            // Attach the latest Rotronic reading. We accept staleness up to
+            // ~the env poll period (5 s); older samples (probe just unplugged)
+            // get dropped so the row records "no probe" rather than a stale value.
+            EnvironmentSample? env;
+            lock (_envLock) env = _lastEnv;
+            if (env is not null && (DateTime.UtcNow - env.TimestampUtc) > TimeSpan.FromSeconds(15))
+                env = null;
+            if (env is not null) snap = snap with { Env = env };
             _csv.Write(snap);
             var row = Models.LogRow.FromSnapshot(snap);
             Application.Current?.Dispatcher.Invoke(() =>
@@ -436,7 +576,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         StopLogging();
         StopPolling();
+        StopEnvironmentPolling();
         _client.Dispose();
+        _rotronic.Dispose();
         _csv.Dispose();
     }
 }

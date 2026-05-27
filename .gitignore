@@ -24,3 +24,11 @@ Thumbs.db
 
 # Backup snapshots created during development
 *_backup_*/
+
+# Installer build artifacts (large; rebuilt by ISCC + dotnet publish)
+installer/publish/
+installer/output/
+installer/prereq/
+*.exe
+!setup.exe.example
+

@@ -53,6 +53,31 @@
             </StackPanel>
         </Border>
 
+        <!-- ==================== Setup reminder banner ==================== -->
+        <!-- Visible from first launch; greys out once a connection is open so it
+             stops competing with live readings. -->
+        <Border DockPanel.Dock="Top" Background="#FFF3CD"
+                BorderBrush="#E0A800" BorderThickness="0,0,0,1"
+                Padding="10,6"
+                Visibility="{Binding NotConnected, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x26A0;" FontSize="14" Foreground="#856404"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Foreground="#856404" VerticalAlignment="Center"
+                               FontWeight="Bold">
+                        SETUP: both sides must be set to 19200 baud, 8 data bits, no parity, 1 stop bit, no flow control.
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock Foreground="#856404" Margin="22,2,0,0">
+                    1. On this laptop &#x2192; set the <Run FontWeight="Bold">Baud</Run> selector above to <Run FontWeight="Bold">19200</Run>.
+                </TextBlock>
+                <TextBlock Foreground="#856404" Margin="22,0,0,0">
+                    2. On the PPA5500 &#x2192; <Run FontWeight="Bold">MENU &#x2192; INTERFACES &#x2192; RS232 &#x2192; baud = 19200</Run>.
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
         <!-- ==================== Bottom status bar ==================== -->
         <Border DockPanel.Dock="Bottom" Background="{StaticResource StatusBg}"
                 Padding="10,4">
@@ -78,6 +103,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Header bar -->
@@ -205,6 +231,26 @@
                             <TextBlock Grid.Row="12" Grid.Column="3" Text="{Binding Phase3.IThdText}" Style="{StaticResource DisplayValue}"/>
                             <TextBlock Grid.Row="12" Grid.Column="4" Text=""         Style="{StaticResource DisplayUnit}"/>
                         </Grid>
+
+                        <!-- Lab conditions strip: Rotronic ambient T / RH (env probe) -->
+                        <Border Grid.Row="2" Margin="0,10,0,0" Padding="10,6"
+                                Background="#0E1620" BorderBrush="#243142" BorderThickness="1" CornerRadius="3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="lab" Style="{StaticResource DisplayLabel}" VerticalAlignment="Center"/>
+                                <TextBlock Text="T"   Style="{StaticResource DisplayLabel}" Margin="20,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding TemperatureText}" Style="{StaticResource DisplayValue}" VerticalAlignment="Center"/>
+                                <TextBlock Text="°C"  Style="{StaticResource DisplayUnit}"  Margin="4,0,0,0"  VerticalAlignment="Center"/>
+                                <TextBlock Text="RH"  Style="{StaticResource DisplayLabel}" Margin="30,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding HumidityText}"    Style="{StaticResource DisplayValue}" VerticalAlignment="Center"/>
+                                <TextBlock Text="%"   Style="{StaticResource DisplayUnit}"  Margin="4,0,0,0"  VerticalAlignment="Center"/>
+                                <TextBlock Margin="40,0,0,0" VerticalAlignment="Center"
+                                           Foreground="#8090A8" FontFamily="Consolas" FontSize="11"
+                                           Text="{Binding RotronicDeviceLabel}"/>
+                                <TextBlock Margin="14,0,0,0" VerticalAlignment="Center"
+                                           Foreground="#FFCC66" FontFamily="Consolas" FontSize="11"
+                                           Text="{Binding RotronicStatus}"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Border>
             </TabItem>
@@ -306,7 +352,9 @@
                                 </Style>
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="time"        Binding="{Binding TimeText}"   Width="160"/>
+                                <DataGridTextColumn Header="date / time" Binding="{Binding TimeText}"   Width="160"/>
+                                <DataGridTextColumn Header="T"           Binding="{Binding TempText}"   Width="80"/>
+                                <DataGridTextColumn Header="RH"          Binding="{Binding RhText}"     Width="70"/>
                                 <DataGridTextColumn Header="freq"        Binding="{Binding FreqText}"   Width="80"/>
                                 <DataGridTextColumn Header="ch1 V"       Binding="{Binding Ch1VText}"   Width="100"/>
                                 <DataGridTextColumn Header="ch2 V"       Binding="{Binding Ch2VText}"   Width="100"/>

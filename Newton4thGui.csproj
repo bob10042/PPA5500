@@ -7,12 +7,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Newton4thGui</RootNamespace>
     <AssemblyName>Newton4thGui</AssemblyName>
-    <ApplicationIcon></ApplicationIcon>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="FTD2XX_NET" Version="1.0.14" />
   </ItemGroup>
 </Project>
