@@ -1,0 +1,49 @@
+==============================================================
+  CLAUDE CODE PATH FIX - quick instructions
+==============================================================
+
+WHAT THIS DOES
+--------------
+After running the Claude installer, the 'claude' command may not be
+found in new PowerShell windows because the installer did not add
+its folder to your PATH. This script finds where 'claude' was
+installed and adds that folder to your USER PATH permanently.
+
+You do NOT need administrator rights - it only touches the user
+environment.
+
+
+HOW TO RUN IT
+-------------
+  1. Plug this USB stick in.
+  2. Open Windows PowerShell  (Start menu -> 'powershell').
+     (Admin is NOT required.)
+  3. Change to the USB drive (use whatever letter File Explorer
+     shows; usually E: or F:):
+        cd F:\
+  4. Allow the script for this session only:
+        Set-ExecutionPolicy -Scope Process Bypass -Force
+  5. Run it:
+        .\fix-claude-path.ps1
+  6. When it finishes, CLOSE that PowerShell window and open a
+     NEW one (this is how Windows picks up PATH changes).
+  7. Test:
+        claude --version
+
+
+TROUBLESHOOTING
+---------------
+* "Could not find claude.exe / claude.cmd anywhere":
+    The Claude installer never actually completed. Run this first:
+        irm https://claude.ai/install.ps1 | iex
+    Then re-run fix-claude-path.ps1.
+
+* Still 'not recognized' after reopening PowerShell:
+    You opened the new PowerShell window BEFORE the script
+    finished. Close everything, run the script again, and only
+    open a new shell after it prints SUCCESS.
+
+* Wrong PowerShell version:
+    PowerShell 5 (the blue one, built into Windows) works fine.
+    PowerShell 7 ('pwsh', black icon) also works.
+    The script does not care which.

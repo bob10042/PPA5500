@@ -219,6 +219,31 @@
             </StackPanel>
         </Border>
 
+        <!-- ==================== Setup reminder banner ==================== -->
+        <!-- Visible from first launch; greys out once a connection is open so it
+             stops competing with live readings. -->
+        <Border DockPanel.Dock="Top" Background="#FFF3CD"
+                BorderBrush="#E0A800" BorderThickness="0,0,0,1"
+                Padding="10,6"
+                Visibility="{Binding NotConnected, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#x26A0;" FontSize="14" Foreground="#856404"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Foreground="#856404" VerticalAlignment="Center"
+                               FontWeight="Bold">
+                        SETUP: both sides must be set to 19200 baud, 8 data bits, no parity, 1 stop bit, no flow control.
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock Foreground="#856404" Margin="22,2,0,0">
+                    1. On this laptop &#x2192; set the <Run FontWeight="Bold">Baud</Run> selector above to <Run FontWeight="Bold">19200</Run>.
+                </TextBlock>
+                <TextBlock Foreground="#856404" Margin="22,0,0,0">
+                    2. On the PPA5500 &#x2192; <Run FontWeight="Bold">MENU &#x2192; INTERFACES &#x2192; RS232 &#x2192; baud = 19200</Run>.
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
         <!-- ==================== Bottom status bar ==================== -->
         <Border DockPanel.Dock="Bottom" Background="{StaticResource StatusBg}"
                 Padding="10,4">
