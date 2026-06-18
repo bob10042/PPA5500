@@ -3,7 +3,7 @@ using System;
 namespace Newton4thGui.Models;
 
 /// <summary>One row of measurement data captured per poll cycle.</summary>
-public sealed class PowerSnapshot
+public sealed record PowerSnapshot
 {
     public DateTime TimestampUtc { get; init; } = DateTime.UtcNow;
     public double Frequency { get; init; }
@@ -12,6 +12,9 @@ public sealed class PowerSnapshot
     public string RawRms { get; init; } = "";
     public string RawWva { get; init; } = "";
     public string RawPhPh { get; init; } = "";
+
+    /// <summary>Latest ambient T/RH sample paired with this snapshot, if a Rotronic probe is connected.</summary>
+    public EnvironmentSample? Env { get; init; }
 }
 
 public sealed class PhaseReading

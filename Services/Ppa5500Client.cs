@@ -15,7 +15,7 @@ namespace Newton4thGui.Services;
 ///   - Commands case-insensitive, only first 6 chars significant
 ///   - *IDN? reply: company,product,serial,version
 /// </summary>
-public sealed class Ppa5500Client : IDisposable
+public sealed class Ppa5500Client : IPpaClient
 {
     private SerialPort? _port;
     private readonly SemaphoreSlim _lock = new(1, 1);

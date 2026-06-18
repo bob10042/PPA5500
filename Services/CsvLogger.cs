@@ -61,7 +61,9 @@ public sealed class CsvLogger : IDisposable
 
     private static string BuildHeader()
     {
-        var sb = new StringBuilder("date,time,freq_hz");
+        // Environmental columns live with the timestamp block (right after date+time)
+        // so calibration paperwork shows lab conditions next to the time, not buried.
+        var sb = new StringBuilder("date,time,temp_c,rh_pct,freq_hz");
         for (int ch = 1; ch <= 3; ch++)
             foreach (var c in PerPhaseCols) sb.Append(',').Append("ch").Append(ch).Append('_').Append(c);
         return sb.ToString();
@@ -77,6 +79,20 @@ public sealed class CsvLogger : IDisposable
         var local = snap.TimestampUtc.ToLocalTime();
         sb.Append(local.ToString("yyyy-MM-dd", ci)).Append(',');
         sb.Append(local.ToString("HH:mm:ss.fff", ci)).Append(',');
+
+        // temp_c, rh_pct — empty cells when no probe is connected or the sample
+        // failed validation. Downstream tools tell "no probe" from a fault by
+        // looking at whether either column has any value across the run.
+        if (snap.Env is { IsValid: true } env)
+        {
+            sb.Append(env.TempC.ToString("0.##", ci)).Append(',');
+            sb.Append(env.RhPct.ToString("0.##", ci)).Append(',');
+        }
+        else
+        {
+            sb.Append(",,");
+        }
+
         sb.Append(snap.Frequency.ToString("0.######", ci));
 
         for (int i = 0; i < 3; i++)
@@ -107,6 +123,16 @@ public sealed class CsvLogger : IDisposable
             js.Append("\"time\":\"").Append(local.ToString("HH:mm:ss.fff", ci)).Append("\",");
             js.Append("\"timestamp_utc\":\"").Append(snap.TimestampUtc.ToString("o", ci)).Append("\",");
             js.Append("\"freq_hz\":").Append(JF(snap.Frequency));
+            if (snap.Env is { IsValid: true } envJ)
+            {
+                js.Append(",\"temp_c\":").Append(JF(envJ.TempC));
+                js.Append(",\"rh_pct\":").Append(JF(envJ.RhPct));
+                js.Append(",\"env_source\":\"").Append(JsonEscape(envJ.Source)).Append('"');
+            }
+            else
+            {
+                js.Append(",\"temp_c\":null,\"rh_pct\":null");
+            }
             for (int i = 0; i < 3; i++)
             {
                 var p = i < snap.Phases.Length ? snap.Phases[i] : null;
@@ -139,5 +165,27 @@ public sealed class CsvLogger : IDisposable
     {
         if (double.IsNaN(v) || double.IsInfinity(v)) return "null";
         return v.ToString("0.######E+00", CultureInfo.InvariantCulture);
+    }
+
+    private static string JsonEscape(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        var sb = new StringBuilder(s.Length + 2);
+        foreach (var c in s)
+        {
+            switch (c)
+            {
+                case '"':  sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n");  break;
+                case '\r': sb.Append("\\r");  break;
+                case '\t': sb.Append("\\t");  break;
+                default:
+                    if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
+                    else sb.Append(c);
+                    break;
+            }
+        }
+        return sb.ToString();
     }
 }

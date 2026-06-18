@@ -13,6 +13,16 @@ public partial class MainWindow : Window
         Closed += (_, _) => (DataContext as MainViewModel)?.Dispose();
     }
 
+    private void SerialMode_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.InterfaceMode = "Serial";
+    }
+
+    private void LanMode_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm) vm.InterfaceMode = "LAN";
+    }
+
     private void LoggedRowsGrid_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not DataGrid grid) return;
